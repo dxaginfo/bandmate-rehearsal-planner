@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bandmate_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - bandmate-network
+
+  redis:
+    image: redis:6
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - bandmate-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      NODE_ENV: development
+      PORT: 8000
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/bandmate_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your_jwt_secret_key
+      JWT_EXPIRES_IN: 7d
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - bandmate-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      REACT_APP_API_URL: http://localhost:8000/api
+      REACT_APP_SOCKET_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - bandmate-network
+
+networks:
+  bandmate-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
